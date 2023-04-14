@@ -1,2 +1,2 @@
-# careless_GUImore
+# CareLess GUImore
 A GUI for careless
