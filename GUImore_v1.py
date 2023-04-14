@@ -2,7 +2,24 @@ import sys
 import os
 import subprocess
 from PyQt5.QtWidgets import QApplication, QProgressBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, QPlainTextEdit, QScrollArea, QRadioButton, QSpinBox, QMessageBox
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
+
+class RunThread(QThread):
+    output_received = pyqtSignal(str)
+
+    def __init__(self, command=None):
+        super().__init__()
+        self.command = command
+
+    def run(self):
+        process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+
+        while True:
+            output = process.stdout.readline()
+            if output == "" and process.poll() is not None:
+                break
+            if output:
+                self.output_received.emit(output.strip())
 
 class GUImore(QWidget):
     def __init__(self):
@@ -17,12 +34,12 @@ class GUImore(QWidget):
         project_layout = QHBoxLayout()
         project_label = QLabel("Project:")
         self.project_edit = QLineEdit()
-        project_set_btn = QPushButton("Set")
-        project_set_btn.clicked.connect(self.create_project_folder)
+        self.project_set_btn = QPushButton("Set")
+        self.project_set_btn.clicked.connect(self.create_project_folder)
 
         project_layout.addWidget(project_label)
         project_layout.addWidget(self.project_edit)
-        project_layout.addWidget(project_set_btn)
+        project_layout.addWidget(self.project_set_btn)
         layout.addLayout(project_layout)
 
         # Input File
@@ -81,6 +98,15 @@ class GUImore(QWidget):
         data_label_layout.addWidget(self.iterations_input)
         layout.addLayout(data_label_layout)
 
+        self.output_message_box = QPlainTextEdit()
+        self.output_message_box.setReadOnly(True)
+        output_message_box_label = QLabel("Careless Output:")
+        layout.addWidget(output_message_box_label)
+        layout.addWidget(self.output_message_box)
+
+        self.run_thread = RunThread()
+        self.run_thread.output_received.connect(self.handle_command_output)
+
         # Reset Button
         reset_btn = QPushButton("Reset")
         reset_btn.clicked.connect(self.reset)
@@ -91,8 +117,17 @@ class GUImore(QWidget):
         self.show()
 
     def create_project_folder(self):
-        self.projname = self.project_edit.text()
-        os.makedirs(self.projname + "_careless", exist_ok=True)
+        project_name = self.project_edit.text()
+        if not project_name:
+            QMessageBox.warning(self, "Warning", "Please enter a project name.")
+            return
+
+        try:
+            os.makedirs(project_name, exist_ok=True)
+            self.projname = project_name
+            self.project_set_btn.setStyleSheet("background-color: green")
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Error creating project directory: {e}")
 
     def browse_input_file(self):
         file_filter = "MTZ Files (*.mtz);;All Files (*)"
@@ -129,37 +164,47 @@ class GUImore(QWidget):
 
     def run_careless(self):
         iterations = self.iterations_input.value()
-        mode = "normal" if self.normal_radio.isChecked() else "robust"
-        mode_folder = os.path.join(self.projname + "_careless", mode)
+        mode = "normal" if self.normal_radio.isChecked() else "robust" if self.robust_radio.isChecked() else "boost"
+        mode_folder = os.path.join(self.projname, mode)
         os.makedirs(mode_folder, exist_ok=True)
 
-        popup = f"Finished running Careless. See {self.projname}_0.mtz"
         if mode == "normal":
             command = ["careless", "mono", "--anomalous", "--disable-image-scales", "--merge-half-datasets",
-                       f"--iterations={iterations}", ",".join(self.batch_and_mtzreal_columns), self.inputfile,
-                       f"{self.projname}_careless/normal/{self.projname}"]
+                    f"--iterations={iterations}", ",".join(self.batch_and_mtzreal_columns), self.inputfile,
+                    f"careless/normal/{self.projname}"]
         elif mode == "robust":
             dof = self.dof_input.value()
             command = ["careless", "mono", f"--studentt-likelihood-dof={dof}", "--anomalous",
-                       "--disable-image-scales", "--merge-half-datasets", f"--iterations={iterations}",
-                       ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"{self.projname}_careless/robust/{self.projname}"]
+                    "--disable-image-scales", "--merge-half-datasets", f"--iterations={iterations}",
+                    ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless/normal/{self.projname}"]
         else:  # Boost mode
             dof = self.dof_input.value()
             command1 = ["careless", "mono", f"--studentt-likelihood-dof={dof}", "--mc-samples=20", "--mlp-layers=10", "--image-layers=2",
-                    ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"{self.projname}_careless/boost/{self.projname}_noanom"]
-            subprocess.call(command1)
-
+                        ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless/boost/{self.projname}_noanom"]
             command2 = ["careless", "mono", "--freeze-scale", f"--scale-file=careless/boost/{self.projname}_noanom",
-                    f"--studentt-likelihood-dof={dof}", "--mc-samples=20", "--mlp-layers=10", "--image-layers=2",
-                    ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"{self.projname}_careless/boost/{self.projname}_anom"]
-            subprocess.call(command2)
-            popup = f"Finished running Careless. See {self.projname}_anom_0.mtz"
+                        f"--studentt-likelihood-dof={dof}", "--mc-samples=20", "--mlp-layers=10", "--image-layers=2",
+                        ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless/boost/{self.projname}_anom"]
 
-        subprocess.call(command)
-        
-        QMessageBox.information(self, "Finished", popup)
+            self.run_command_thread(command1)
+            self.run_command_thread(command2)
+
+        if mode != "boost":
+            self.run_command_thread(command)
+        else:
+            self.run_command_thread(command1)
+            self.run_command_thread(command2)
+
+        QMessageBox.information(self, "Initiated", "Started running careless... output will appear in the output box shortly.")
+
+    def run_command_thread(self, command):
+        self.run_thread.command = command
+        self.run_thread.start()
+
+    def handle_command_output(self, output):
+        self.output_message_box.appendPlainText(output)
 
     def reset(self):
+        self.project_set_btn.setStyleSheet("")
         self.project_edit.clear()
         self.input_edit.clear()
         self.mtz_output.clear()
