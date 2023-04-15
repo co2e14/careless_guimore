@@ -189,14 +189,13 @@ class GUImore(QWidget):
                         f"--studentt-likelihood-dof={dof}", "--mc-samples=20", "--mlp-layers=10", "--image-layers=2",
                         ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless/boost/{self.projname}_anom"]
 
-            self.run_command_thread(command1)
-            self.run_command_thread(command2)
 
         if mode != "boost":
             self.run_command_thread(command)
         else:
+            self.run_thread.finished.connect(self.run_second_command)
+            self.second_command = command2
             self.run_command_thread(command1)
-            self.run_command_thread(command2)
 
         QMessageBox.information(self, "Initiated", "Started running careless... output will appear in the output box shortly.")
 
@@ -209,6 +208,10 @@ class GUImore(QWidget):
     def run_command_thread(self, command):
         self.run_thread.command = command
         self.run_thread.start()
+        
+    def run_second_command(self):
+        self.run_thread.finished.disconnect(self.run_second_command)
+        self.run_command_thread(self.second_command)
 
     def handle_command_output(self, output):
         self.output_message_box.appendPlainText(output)
