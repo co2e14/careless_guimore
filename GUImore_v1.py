@@ -81,6 +81,8 @@ class GUImore(QWidget):
         self.dof_input.setDisabled(True)
         run_careless_btn = QPushButton("Run Careless")
         run_careless_btn.clicked.connect(self.run_careless)
+        run_careless_btn.setEnabled(False)
+        self.run_careless_btn = run_careless_btn
         self.iterations_input = QSpinBox()
         self.iterations_input.setMinimum(1)
         self.iterations_input.setMaximum(999999)
@@ -126,6 +128,7 @@ class GUImore(QWidget):
             os.makedirs(project_name, exist_ok=True)
             self.projname = project_name
             self.project_set_btn.setStyleSheet("background-color: green")
+            self.update_run_careless_button()
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Error creating project directory: {e}")
 
@@ -135,6 +138,7 @@ class GUImore(QWidget):
         self.input_edit.setText(self.inputfile)
         if self.inputfile:
             self.mtz_dump_btn.setEnabled(True)
+        self.update_run_careless_button()
 
     def mtz_dump(self):
         progress = QProgressBar(self)
@@ -195,6 +199,12 @@ class GUImore(QWidget):
             self.run_command_thread(command2)
 
         QMessageBox.information(self, "Initiated", "Started running careless... output will appear in the output box shortly.")
+
+    def update_run_careless_button(self):
+        if hasattr(self, 'projname') and hasattr(self, 'inputfile'):
+            self.run_careless_btn.setEnabled(True)
+        else:
+            self.run_careless_btn.setEnabled(False)
 
     def run_command_thread(self, command):
         self.run_thread.command = command
