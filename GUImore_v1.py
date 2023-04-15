@@ -1,11 +1,13 @@
 import sys
 import os
 import subprocess
+import re
 from PyQt5.QtWidgets import QApplication, QProgressBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, QPlainTextEdit, QScrollArea, QRadioButton, QSpinBox, QMessageBox
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 
 class RunThread(QThread):
     output_received = pyqtSignal(str)
+    finished_running = pyqtSignal()
 
     def __init__(self, command=None):
         super().__init__()
@@ -20,6 +22,8 @@ class RunThread(QThread):
                 break
             if output:
                 self.output_received.emit(output.strip())
+        
+        self.finished_running.emit()
 
 class GUImore(QWidget):
     def __init__(self):
@@ -107,11 +111,16 @@ class GUImore(QWidget):
 
         self.run_thread = RunThread()
         self.run_thread.output_received.connect(self.handle_command_output)
+        self.run_thread.finished_running.connect(self.show_finished_message)
 
         # Reset Button
         reset_btn = QPushButton("Reset")
         reset_btn.clicked.connect(self.reset)
         layout.addWidget(reset_btn)
+        
+        self.progress_bar = QProgressBar(self)
+        self.progress_bar.setRange(0, 100)  
+        layout.addWidget(self.progress_bar)
 
         self.setLayout(layout)
         self.setWindowTitle("GUImore")
@@ -124,7 +133,7 @@ class GUImore(QWidget):
             return
 
         try:
-            os.makedirs(project_name, exist_ok=True)
+            os.makedirs("careless_" + project_name, exist_ok=True)
             self.projname = project_name
             self.project_set_btn.setStyleSheet("background-color: green")
             self.update_run_careless_button()
@@ -164,29 +173,31 @@ class GUImore(QWidget):
 
         # Set data labels
         self.datalabels.setText(", ".join(["dHKL", "Hobs", "Kobs", "Lobs"] + self.batch_and_mtzreal_columns))
+        self.update_run_careless_button()
 
     def run_careless(self):
         iterations = self.iterations_input.value()
         mode = "normal" if self.normal_radio.isChecked() else "robust" if self.robust_radio.isChecked() else "boost"
-        mode_folder = os.path.join(self.projname, mode)
+        mode_folder = os.path.join("careless_" + self.projname, mode)
+        self.mode_folder = mode_folder
         os.makedirs(mode_folder, exist_ok=True)
 
         if mode == "normal":
             command = ["careless", "mono", "--anomalous", "--disable-image-scales", "--merge-half-datasets",
                     f"--iterations={iterations}", ",".join(self.batch_and_mtzreal_columns), self.inputfile,
-                    f"careless/normal/{self.projname}"]
+                    f"careless_{self.projname}/normal/{self.projname}"]
         elif mode == "robust":
             dof = self.dof_input.value()
             command = ["careless", "mono", f"--studentt-likelihood-dof={dof}", "--anomalous",
                     "--disable-image-scales", "--merge-half-datasets", f"--iterations={iterations}",
-                    ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless/normal/{self.projname}"]
+                    ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless_{self.projname}/robust/{self.projname}"]
         else:  # Boost mode
             dof = self.dof_input.value()
             command1 = ["careless", "mono", f"--studentt-likelihood-dof={dof}", "--mc-samples=20", "--mlp-layers=10", "--image-layers=2",
                         ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless/boost/{self.projname}_noanom"]
-            command2 = ["careless", "mono", "--freeze-scale", f"--scale-file=careless/boost/{self.projname}_noanom",
+            command2 = ["careless", "mono", "--freeze-scale", f"--scale-file=careless_{self.projname}/boost/{self.projname}_noanom",
                         f"--studentt-likelihood-dof={dof}", "--mc-samples=20", "--mlp-layers=10", "--image-layers=2",
-                        ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless/boost/{self.projname}_anom"]
+                        ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless_{self.projname}/boost/{self.projname}_anom"]
 
 
         if mode != "boost":
@@ -197,9 +208,10 @@ class GUImore(QWidget):
             self.run_command_thread(command1)
 
         QMessageBox.information(self, "Initiated", "Started running careless... output will appear in the output box shortly.")
+        self.output_message_box.appendPlainText("Starting careless, please wait...\n")
 
     def update_run_careless_button(self):
-        if hasattr(self, 'projname') and hasattr(self, 'inputfile'):
+        if hasattr(self, 'projname') and hasattr(self, 'inputfile') and hasattr(self, 'batch_and_mtzreal_columns'):
             self.run_careless_btn.setEnabled(True)
         else:
             self.run_careless_btn.setEnabled(False)
@@ -212,8 +224,22 @@ class GUImore(QWidget):
         self.run_thread.finished.disconnect(self.run_second_command)
         self.run_command_thread(self.second_command)
 
+    def update_progress_bar(self, output):
+        # Example: "Training:  72%|███████▏  | 2166/3000 [00:37<00:13, 60.19it/s, loss=1.18e+05, F KLDiv=7.75e+03, NLL=1.10e+05]"
+        percentage_match = re.search(r"(\d+)%", output)
+        if percentage_match:
+            try:
+                percentage = int(percentage_match.group(1))
+                self.progress_bar.setValue(percentage)
+            except ValueError:
+                pass
+
     def handle_command_output(self, output):
+        self.update_progress_bar(output)
         self.output_message_box.appendPlainText(output)
+    
+    def show_finished_message(self):
+        QMessageBox.information(self, "Completed", f"Careless has finished running. You will find your results here:\n {str(self.mode_folder)}/{self.projname}_0.mtz\n !!! If you are running boost mode, you will see this message twice !!!")
 
     def reset(self):
         self.project_set_btn.setStyleSheet("")
