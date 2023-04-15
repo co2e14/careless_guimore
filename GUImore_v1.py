@@ -30,7 +30,6 @@ class GUImore(QWidget):
     def initUI(self):
         layout = QVBoxLayout()
 
-        # Project Name
         project_layout = QHBoxLayout()
         project_label = QLabel("Project:")
         self.project_edit = QLineEdit()
