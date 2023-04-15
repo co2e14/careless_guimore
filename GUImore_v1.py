@@ -218,9 +218,11 @@ class GUImore(QWidget):
         self.project_edit.clear()
         self.input_edit.clear()
         self.mtz_output.clear()
+        self.output_message_box.clear()
         self.normal_radio.setChecked(True)
         self.dof_input.setValue(16)
         self.iterations_input.setValue(30000)
+        self.run_careless_btn.setEnabled(False)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
