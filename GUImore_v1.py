@@ -181,7 +181,11 @@ class GUImore(QWidget):
         mode = "normal" if self.normal_radio.isChecked() else "robust" if self.robust_radio.isChecked() else "boost"
         mode_folder = os.path.join("careless_" + self.projname, mode)
         self.mode_folder = mode_folder
-        os.makedirs(mode_folder, exist_ok=True)
+        if mode == "boost":
+            os.makedirs(mode_folder + "_noanom", exist_ok=True)
+            os.makedirs(mode_folder + "_anom", exist_ok=True)
+        else:
+            os.makedirs(mode_folder, exist_ok=True)
 
         if mode == "normal":
             command = ["careless", "mono", "--anomalous", "--disable-image-scales", "--merge-half-datasets",
@@ -195,10 +199,10 @@ class GUImore(QWidget):
         else:  # Boost mode
             dof = self.dof_input.value()
             command1 = ["careless", "mono", f"--studentt-likelihood-dof={dof}", "--mc-samples=20", "--mlp-layers=10", "--image-layers=2",
-                        ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless_{self.projname}/boost/{self.projname}_noanom"]
-            command2 = ["careless", "mono", "--freeze-scale", f"--scale-file=careless_{self.projname}/boost/{self.projname}_noanom_scale",
+                        ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless_{self.projname}/boost_noanom/{self.projname}"]
+            command2 = ["careless", "mono", "--freeze-scale", f"--scale-file=careless_{self.projname}/boos_noanom/{self.projname}_scale",
                         f"--studentt-likelihood-dof={dof}", "--mc-samples=20", "--mlp-layers=10", "--image-layers=2",
-                        ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless_{self.projname}/boost/{self.projname}_anom"]
+                        ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless_{self.projname}/boost_anom/{self.projname}"]
 
 
         if mode != "boost":
@@ -226,7 +230,6 @@ class GUImore(QWidget):
         self.run_command_thread(self.second_command)
 
     def update_progress_bar(self, output):
-        # Example: "Training:  72%|███████▏  | 2166/3000 [00:37<00:13, 60.19it/s, loss=1.18e+05, F KLDiv=7.75e+03, NLL=1.10e+05]"
         percentage_match = re.search(r"(\d+)%", output)
         if percentage_match:
             try:
