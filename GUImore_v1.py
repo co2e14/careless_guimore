@@ -195,7 +195,7 @@ class GUImore(QWidget):
         else:  # Boost mode
             dof = self.dof_input.value()
             command1 = ["careless", "mono", f"--studentt-likelihood-dof={dof}", "--mc-samples=20", "--mlp-layers=10", "--image-layers=2",
-                        ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless/boost/{self.projname}_noanom"]
+                        ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless_{self.projname}/boost/{self.projname}_noanom"]
             command2 = ["careless", "mono", "--freeze-scale", f"--scale-file=careless_{self.projname}/boost/{self.projname}_noanom",
                         f"--studentt-likelihood-dof={dof}", "--mc-samples=20", "--mlp-layers=10", "--image-layers=2",
                         ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless_{self.projname}/boost/{self.projname}_anom"]
