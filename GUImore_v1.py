@@ -1,4 +1,4 @@
-#!/dls/science/groups/i23/pyenvs/carelesspy/bin python
+#!/dls/science/groups/i23/pyenvs/carelesspy/bin/python
 import sys
 import os
 import subprocess
