@@ -200,7 +200,7 @@ class GUImore(QWidget):
             dof = self.dof_input.value()
             command1 = ["careless", "mono", f"--studentt-likelihood-dof={dof}", "--mc-samples=20", "--mlp-layers=10", "--image-layers=2",
                         ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless_{self.projname}/boost_noanom/{self.projname}"]
-            command2 = ["careless", "mono", "--freeze-scale", f"--scale-file=careless_{self.projname}/boos_noanom/{self.projname}_scale",
+            command2 = ["careless", "mono", "--freeze-scale", f"--scale-file=careless_{self.projname}/boost_noanom/{self.projname}_scale",
                         f"--studentt-likelihood-dof={dof}", "--mc-samples=20", "--mlp-layers=10", "--image-layers=2",
                         ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless_{self.projname}/boost_anom/{self.projname}"]
 
