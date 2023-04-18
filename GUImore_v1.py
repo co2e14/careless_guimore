@@ -71,8 +71,10 @@ class GUImore(QWidget):
         layout.addWidget(scroll)
 
         # Data Labels, DOF, and Run Careless
+	data_labels_label = QLabel("Data Labels:")
         data_label_layout = QHBoxLayout()
-        self.datalabels = QLabel()
+	self.data_labels_edit = QLineEdit()
+	self.data_labels_edit.setReadOnly(True)
         self.normal_radio = QRadioButton("Normal")
         self.normal_radio.setChecked(True)
         self.robust_radio = QRadioButton("Robust")
@@ -92,9 +94,21 @@ class GUImore(QWidget):
         self.iterations_input.setMaximum(999999)
         self.iterations_input.setValue(30000)
 
+	self.boost_level_box = QComboBox()
+	self.boost_level_box.addItem("fast")
+	self.boost_level_box.addItem("normal")
+	self.boost_level_box.addItem("intense")
+	self.boost_level_box.setCurrentText("normal")
+	self.boost_level_box.setDisabled(True)
+
+	self.normal_radio.toggled.connect(self.update_boost_level_widgets)
+	self.robust_radio.toggled.connect(self.update_boost_level_widgets)
+	self.boost_radio.toggled.connect(self.update_boost_level_widgets)
+
         self.normal_radio.toggled.connect(lambda: self.dof_input.setDisabled(self.normal_radio.isChecked()))
 
-        data_label_layout.addWidget(self.datalabels)
+	data_label_layout.addWidget(data_labels_label)
+	data_label_layout.addWidget(self.data_labels_edit)
         data_label_layout.addWidget(self.normal_radio)
         data_label_layout.addWidget(self.robust_radio)
         data_label_layout.addWidget(self.boost_radio)
@@ -102,6 +116,7 @@ class GUImore(QWidget):
         data_label_layout.addWidget(self.dof_input)
         data_label_layout.addWidget(run_careless_btn)
         data_label_layout.addWidget(self.iterations_input)
+	data_label_layout.addWidget(self.boost_level_box)
         layout.addLayout(data_label_layout)
 
         self.output_message_box = QPlainTextEdit()
@@ -112,7 +127,7 @@ class GUImore(QWidget):
 
         self.run_thread = RunThread()
         self.run_thread.output_received.connect(self.handle_command_output)
-        self.run_thread.finished_running.connect(self.show_finished_message)
+        #self.run_thread.finished_running.connect(self.show_finished_message)
 
         # Reset Button
         reset_btn = QPushButton("Reset")
@@ -165,7 +180,7 @@ class GUImore(QWidget):
         start_line = "mtz.dtypes:\n"
         start_index = output.index(start_line) + len(start_line)
         mtz_lines = output[start_index:].split("\n")
-        self.batch_and_mtzreal_columns = []
+        self.batch_and_mtzreal_columns = ["dHKL", "Hobs", "Kobs", "Lobs"]
 
         for line in mtz_lines:
             if "Batch" in line or "MTZReal" in line:
@@ -173,7 +188,7 @@ class GUImore(QWidget):
                 self.batch_and_mtzreal_columns.append(column_name)
 
         # Set data labels
-        self.datalabels.setText(", ".join(["dHKL", "Hobs", "Kobs", "Lobs"] + self.batch_and_mtzreal_columns))
+	self.data_labels_edit.setText(", ".join(self.batch_and_mtzreal_columns))
         self.update_run_careless_button()
 
     def run_careless(self):
@@ -184,6 +199,13 @@ class GUImore(QWidget):
         if mode == "boost":
             os.makedirs(mode_folder + "_noanom", exist_ok=True)
             os.makedirs(mode_folder + "_anom", exist_ok=True)
+	    boost_level = self.boost_level_box.currentText()
+	    if boost_level == "fast":
+		boost_layers = 1
+	    elif boost_level == "normal":
+		boost_layers = 4
+	    else:
+		boost_layers = 16
         else:
             os.makedirs(mode_folder, exist_ok=True)
 
@@ -198,11 +220,11 @@ class GUImore(QWidget):
                     ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless_{self.projname}/robust/{self.projname}"]
         else:  # Boost mode
             dof = self.dof_input.value()
-            command1 = ["careless", "mono", f"--studentt-likelihood-dof={dof}", "--mc-samples=30", "--mlp-layers=20", "--image-layers=3",
+            command1 = ["careless", "mono", f"--studentt-likelihood-dof={dof}", "--mc-samples=20", "--mlp-layers=10", "--image-layers={boost_layers}",
                         ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless_{self.projname}/boost_noanom/{self.projname}"]
 
             command2 = ["careless", "mono", "--freeze-scale", f"--scale-file=careless_{self.projname}/boost_noanom/{self.projname}_scale", "--anomalous",
-                        f"--studentt-likelihood-dof={dof}", "--mc-samples=30", "--mlp-layers=20", "--image-layers=3",
+                        f"--studentt-likelihood-dof={dof}", "--mc-samples=20", "--mlp-layers=10", "--image-layers={boost_layers}",
                         ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless_{self.projname}/boost_anom/{self.projname}"]
 
 
@@ -221,6 +243,14 @@ class GUImore(QWidget):
             self.run_careless_btn.setEnabled(True)
         else:
             self.run_careless_btn.setEnabled(False)
+
+    def update_boost_level_widgets(self):
+        if self.boost_radio.isChecked():
+            self.iterations_input.setDisabled(True)
+            self.boost_level_box.setEnabled(True)
+        else:
+            self.iterations_input.setEnabled(True)
+            self.boost_level_box.setDisabled(True)
 
     def run_command_thread(self, command):
         self.run_thread.command = command
