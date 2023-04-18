@@ -71,7 +71,7 @@ class GUImore(QWidget):
         layout.addWidget(scroll)
 
         # Data Labels, DOF, and Run Careless
-	data_label_layout = QHBoxLayout()
+        data_label_layout = QHBoxLayout()
         choices_label_layout = QHBoxLayout()
         data_labels_label = QLabel("Data Labels:")
         self.data_labels_edit = QLineEdit()
