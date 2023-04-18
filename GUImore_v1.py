@@ -71,10 +71,10 @@ class GUImore(QWidget):
         layout.addWidget(scroll)
 
         # Data Labels, DOF, and Run Careless
-	data_labels_label = QLabel("Data Labels:")
+        data_labels_label = QLabel("Data Labels:")
         data_label_layout = QHBoxLayout()
-	self.data_labels_edit = QLineEdit()
-	self.data_labels_edit.setReadOnly(True)
+        self.data_labels_edit = QLineEdit()
+        self.data_labels_edit.setReadOnly(True)
         self.normal_radio = QRadioButton("Normal")
         self.normal_radio.setChecked(True)
         self.robust_radio = QRadioButton("Robust")
@@ -94,21 +94,21 @@ class GUImore(QWidget):
         self.iterations_input.setMaximum(999999)
         self.iterations_input.setValue(30000)
 
-	self.boost_level_box = QComboBox()
-	self.boost_level_box.addItem("fast")
-	self.boost_level_box.addItem("normal")
-	self.boost_level_box.addItem("intense")
-	self.boost_level_box.setCurrentText("normal")
-	self.boost_level_box.setDisabled(True)
+        self.boost_level_box = QComboBox()
+        self.boost_level_box.addItem("fast")
+        self.boost_level_box.addItem("normal")
+        self.boost_level_box.addItem("intense")
+        self.boost_level_box.setCurrentText("normal")
+        self.boost_level_box.setDisabled(True)
 
-	self.normal_radio.toggled.connect(self.update_boost_level_widgets)
-	self.robust_radio.toggled.connect(self.update_boost_level_widgets)
-	self.boost_radio.toggled.connect(self.update_boost_level_widgets)
+        self.normal_radio.toggled.connect(self.update_boost_level_widgets)
+        self.robust_radio.toggled.connect(self.update_boost_level_widgets)
+        self.boost_radio.toggled.connect(self.update_boost_level_widgets)
 
         self.normal_radio.toggled.connect(lambda: self.dof_input.setDisabled(self.normal_radio.isChecked()))
 
-	data_label_layout.addWidget(data_labels_label)
-	data_label_layout.addWidget(self.data_labels_edit)
+        data_label_layout.addWidget(data_labels_label)
+        data_label_layout.addWidget(self.data_labels_edit)
         data_label_layout.addWidget(self.normal_radio)
         data_label_layout.addWidget(self.robust_radio)
         data_label_layout.addWidget(self.boost_radio)
@@ -116,7 +116,7 @@ class GUImore(QWidget):
         data_label_layout.addWidget(self.dof_input)
         data_label_layout.addWidget(run_careless_btn)
         data_label_layout.addWidget(self.iterations_input)
-	data_label_layout.addWidget(self.boost_level_box)
+        data_label_layout.addWidget(self.boost_level_box)
         layout.addLayout(data_label_layout)
 
         self.output_message_box = QPlainTextEdit()
@@ -188,7 +188,7 @@ class GUImore(QWidget):
                 self.batch_and_mtzreal_columns.append(column_name)
 
         # Set data labels
-	self.data_labels_edit.setText(", ".join(self.batch_and_mtzreal_columns))
+        self.data_labels_edit.setText(", ".join(self.batch_and_mtzreal_columns))
         self.update_run_careless_button()
 
     def run_careless(self):
@@ -199,13 +199,13 @@ class GUImore(QWidget):
         if mode == "boost":
             os.makedirs(mode_folder + "_noanom", exist_ok=True)
             os.makedirs(mode_folder + "_anom", exist_ok=True)
-	    boost_level = self.boost_level_box.currentText()
-	    if boost_level == "fast":
-		boost_layers = 1
-	    elif boost_level == "normal":
-		boost_layers = 4
-	    else:
-		boost_layers = 16
+            boost_level = self.boost_level_box.currentText()
+            if boost_level == "fast":
+                boost_layers = 1
+            elif boost_level == "normal":
+                boost_layers = 4
+            else:
+                boost_layers = 16
         else:
             os.makedirs(mode_folder, exist_ok=True)
 
