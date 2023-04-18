@@ -3,7 +3,7 @@ import sys
 import os
 import subprocess
 import re
-from PyQt5.QtWidgets import QApplication, QProgressBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, QPlainTextEdit, QScrollArea, QRadioButton, QSpinBox, QMessageBox
+from PyQt5.QtWidgets import QApplication, QProgressBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, QPlainTextEdit, QScrollArea, QRadioButton, QSpinBox, QMessageBox, QComboBox
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 
 class RunThread(QThread):
@@ -71,8 +71,9 @@ class GUImore(QWidget):
         layout.addWidget(scroll)
 
         # Data Labels, DOF, and Run Careless
+	data_label_layout = QHBoxLayout()
+        choices_label_layout = QHBoxLayout()
         data_labels_label = QLabel("Data Labels:")
-        data_label_layout = QHBoxLayout()
         self.data_labels_edit = QLineEdit()
         self.data_labels_edit.setReadOnly(True)
         self.normal_radio = QRadioButton("Normal")
@@ -80,6 +81,8 @@ class GUImore(QWidget):
         self.robust_radio = QRadioButton("Robust")
         self.boost_radio = QRadioButton("Boost")
         dof_label = QLabel("DOF:")
+        iter_label = QLabel("Iterations:")
+        booster_label = QLabel("Level:")
         self.dof_input = QSpinBox()
         self.dof_input.setMinimum(2)
         self.dof_input.setMaximum(64)
@@ -109,15 +112,18 @@ class GUImore(QWidget):
 
         data_label_layout.addWidget(data_labels_label)
         data_label_layout.addWidget(self.data_labels_edit)
-        data_label_layout.addWidget(self.normal_radio)
-        data_label_layout.addWidget(self.robust_radio)
-        data_label_layout.addWidget(self.boost_radio)
-        data_label_layout.addWidget(dof_label)
-        data_label_layout.addWidget(self.dof_input)
-        data_label_layout.addWidget(run_careless_btn)
-        data_label_layout.addWidget(self.iterations_input)
-        data_label_layout.addWidget(self.boost_level_box)
+        choices_label_layout.addWidget(self.normal_radio)
+        choices_label_layout.addWidget(self.robust_radio)
+        choices_label_layout.addWidget(self.boost_radio)
+        choices_label_layout.addWidget(dof_label)
+        choices_label_layout.addWidget(self.dof_input)
+        choices_label_layout.addWidget(iter_label)
+        choices_label_layout.addWidget(self.iterations_input)
+        choices_label_layout.addWidget(booster_label)
+        choices_label_layout.addWidget(self.boost_level_box)
+        choices_label_layout.addWidget(run_careless_btn)
         layout.addLayout(data_label_layout)
+        layout.addLayout(choices_label_layout)
 
         self.output_message_box = QPlainTextEdit()
         self.output_message_box.setReadOnly(True)
