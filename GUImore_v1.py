@@ -3,8 +3,26 @@ import sys
 import os
 import subprocess
 import re
-from PyQt5.QtWidgets import QApplication, QProgressBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, QPlainTextEdit, QScrollArea, QRadioButton, QSpinBox, QMessageBox, QComboBox, QCheckBox
+from PyQt5.QtWidgets import (
+    QApplication,
+    QProgressBar,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QFileDialog,
+    QPlainTextEdit,
+    QScrollArea,
+    QRadioButton,
+    QSpinBox,
+    QMessageBox,
+    QComboBox,
+    QCheckBox,
+)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
+
 
 class RunThread(QThread):
     output_received = pyqtSignal(str)
@@ -15,7 +33,9 @@ class RunThread(QThread):
         self.command = command
 
     def run(self):
-        process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        process = subprocess.Popen(
+            self.command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+        )
 
         while True:
             output = process.stdout.readline()
@@ -23,8 +43,9 @@ class RunThread(QThread):
                 break
             if output:
                 self.output_received.emit(output.strip())
-        
+
         self.finished_running.emit()
+
 
 class GUImore(QWidget):
     def __init__(self):
@@ -108,7 +129,9 @@ class GUImore(QWidget):
         self.robust_radio.toggled.connect(self.update_boost_level_widgets)
         self.boost_radio.toggled.connect(self.update_boost_level_widgets)
 
-        self.normal_radio.toggled.connect(lambda: self.dof_input.setDisabled(self.normal_radio.isChecked()))
+        self.normal_radio.toggled.connect(
+            lambda: self.dof_input.setDisabled(self.normal_radio.isChecked())
+        )
 
         data_label_layout.addWidget(data_labels_label)
         data_label_layout.addWidget(self.data_labels_edit)
@@ -137,15 +160,15 @@ class GUImore(QWidget):
 
         self.run_thread = RunThread()
         self.run_thread.output_received.connect(self.handle_command_output)
-        #self.run_thread.finished_running.connect(self.show_finished_message)
+        # self.run_thread.finished_running.connect(self.show_finished_message)
 
         # Reset Button
         reset_btn = QPushButton("Reset")
         reset_btn.clicked.connect(self.reset)
         layout.addWidget(reset_btn)
-        
+
         self.progress_bar = QProgressBar(self)
-        self.progress_bar.setRange(0, 100)  
+        self.progress_bar.setRange(0, 100)
         layout.addWidget(self.progress_bar)
 
         self.setLayout(layout)
@@ -168,7 +191,9 @@ class GUImore(QWidget):
 
     def browse_input_file(self):
         file_filter = "MTZ Files (*.mtz);;All Files (*)"
-        self.inputfile, _ = QFileDialog.getOpenFileName(self, "Open File", "", file_filter)
+        self.inputfile, _ = QFileDialog.getOpenFileName(
+            self, "Open File", "", file_filter
+        )
         self.input_edit.setText(self.inputfile)
         if self.inputfile:
             self.mtz_dump_btn.setEnabled(True)
@@ -179,7 +204,9 @@ class GUImore(QWidget):
         progress.setRange(0, 0)
         progress.show()
         try:
-            output = subprocess.check_output(["rs.mtzdump", self.inputfile]).decode("utf-8")
+            output = subprocess.check_output(["rs.mtzdump", self.inputfile]).decode(
+                "utf-8"
+            )
             self.mtz_output.setPlainText(output)
         except subprocess.CalledProcessError as e:
             QMessageBox.warning(self, "Error", str(e))
@@ -207,7 +234,13 @@ class GUImore(QWidget):
             enable_gpu = "--gpu-id=0"
         else:
             enable_gpu = "--disable-gpu"
-        mode = "normal" if self.normal_radio.isChecked() else "robust" if self.robust_radio.isChecked() else "boost"
+        mode = (
+            "normal"
+            if self.normal_radio.isChecked()
+            else "robust"
+            if self.robust_radio.isChecked()
+            else "boost"
+        )
         mode_folder = os.path.join("careless_" + self.projname, mode)
         self.mode_folder = mode_folder
         if mode == "boost":
@@ -224,23 +257,63 @@ class GUImore(QWidget):
             os.makedirs(mode_folder, exist_ok=True)
 
         if mode == "normal":
-            command = ["careless", "mono", "--anomalous", f"{enable_gpu}", "--disable-image-scales", "--merge-half-datasets",
-                    f"--iterations={iterations}", ",".join(self.batch_and_mtzreal_columns), self.inputfile,
-                    f"careless_{self.projname}/normal/{self.projname}"]
+            command = [
+                "careless",
+                "mono",
+                "--anomalous",
+                f"{enable_gpu}",
+                "--disable-image-scales",
+                "--merge-half-datasets",
+                f"--iterations={iterations}",
+                ",".join(self.batch_and_mtzreal_columns),
+                self.inputfile,
+                f"careless_{self.projname}/normal/{self.projname}",
+            ]
         elif mode == "robust":
             dof = self.dof_input.value()
-            command = ["careless", "mono", f"--studentt-likelihood-dof={dof}", "--anomalous", f"{enable_gpu}", 
-                    "--disable-image-scales", "--merge-half-datasets", f"--iterations={iterations}",
-                    ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless_{self.projname}/robust/{self.projname}"]
+            command = [
+                "careless",
+                "mono",
+                f"--studentt-likelihood-dof={dof}",
+                "--anomalous",
+                f"{enable_gpu}",
+                "--disable-image-scales",
+                "--merge-half-datasets",
+                f"--iterations={iterations}",
+                ",".join(self.batch_and_mtzreal_columns),
+                self.inputfile,
+                f"careless_{self.projname}/robust/{self.projname}",
+            ]
         else:  # Boost mode
             dof = self.dof_input.value()
-            command1 = ["careless", "mono", f"--studentt-likelihood-dof={dof}", f"{enable_gpu}", "--mc-samples=20", "--mlp-layers=10", f"--image-layers={boost_layers}",
-                        ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless_{self.projname}/boost_noanom/{self.projname}"]
+            command1 = [
+                "careless",
+                "mono",
+                f"--studentt-likelihood-dof={dof}",
+                f"{enable_gpu}",
+                "--mc-samples=20",
+                "--mlp-layers=10",
+                f"--image-layers={boost_layers}",
+                ",".join(self.batch_and_mtzreal_columns),
+                self.inputfile,
+                f"careless_{self.projname}/boost_noanom/{self.projname}",
+            ]
 
-            command2 = ["careless", "mono", "--freeze-scale", f"--scale-file=careless_{self.projname}/boost_noanom/{self.projname}_scale", "--anomalous",
-                        f"--studentt-likelihood-dof={dof}", f"{enable_gpu}", "--mc-samples=20", "--mlp-layers=10", f"--image-layers={boost_layers}",
-                        ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless_{self.projname}/boost_anom/{self.projname}"]
-
+            command2 = [
+                "careless",
+                "mono",
+                "--freeze-scale",
+                f"--scale-file=careless_{self.projname}/boost_noanom/{self.projname}_scale",
+                "--anomalous",
+                f"--studentt-likelihood-dof={dof}",
+                f"{enable_gpu}",
+                "--mc-samples=20",
+                "--mlp-layers=10",
+                f"--image-layers={boost_layers}",
+                ",".join(self.batch_and_mtzreal_columns),
+                self.inputfile,
+                f"careless_{self.projname}/boost_anom/{self.projname}",
+            ]
 
         if mode != "boost":
             self.run_command_thread(command)
@@ -249,14 +322,22 @@ class GUImore(QWidget):
             self.second_command = command2
             self.run_command_thread(command1)
 
-        QMessageBox.information(self, "Initiated", "Started running careless... output will appear in the output box shortly.")
+        QMessageBox.information(
+            self,
+            "Initiated",
+            "Started running careless... output will appear in the output box shortly.",
+        )
         self.output_message_box.appendPlainText("Starting careless, please wait...\n")
 
     def toggle_gpu(self, state):
         self.enable_gpu = bool(state)
 
     def update_run_careless_button(self):
-        if hasattr(self, 'projname') and hasattr(self, 'inputfile') and hasattr(self, 'batch_and_mtzreal_columns'):
+        if (
+            hasattr(self, "projname")
+            and hasattr(self, "inputfile")
+            and hasattr(self, "batch_and_mtzreal_columns")
+        ):
             self.run_careless_btn.setEnabled(True)
         else:
             self.run_careless_btn.setEnabled(False)
@@ -272,10 +353,10 @@ class GUImore(QWidget):
     def run_command_thread(self, command):
         command_str = " ".join(command)
         self.output_message_box.appendPlainText(f"Command: {command_str}")
-        
+
         self.run_thread.command = command
         self.run_thread.start()
-        
+
     def run_second_command(self):
         self.run_thread.finished.disconnect(self.run_second_command)
         self.run_command_thread(self.second_command)
@@ -292,9 +373,13 @@ class GUImore(QWidget):
     def handle_command_output(self, output):
         self.update_progress_bar(output)
         self.output_message_box.appendPlainText(output)
-    
+
     def show_finished_message(self):
-        QMessageBox.information(self, "Completed", f"Careless has finished running. You will find your results here:\n {str(self.mode_folder)}/{self.projname}_0.mtz\n !!! If you are running boost mode, you will see this message twice !!!")
+        QMessageBox.information(
+            self,
+            "Completed",
+            f"Careless has finished running. You will find your results here:\n {str(self.mode_folder)}/{self.projname}_0.mtz\n !!! If you are running boost mode, you will see this message twice !!!",
+        )
 
     def reset(self):
         self.project_set_btn.setStyleSheet("")
@@ -306,6 +391,7 @@ class GUImore(QWidget):
         self.dof_input.setValue(16)
         self.iterations_input.setValue(30000)
         self.run_careless_btn.setEnabled(False)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
