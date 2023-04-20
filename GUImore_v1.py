@@ -1,9 +1,9 @@
-#!/dls/science/groups/i23/pyenvs/carelesspy/bin/python
+#!/dls/science/groups/i23/pyenvs/carelesspy_3p9/bin/python
 import sys
 import os
 import subprocess
 import re
-from PyQt5.QtWidgets import QApplication, QProgressBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, QPlainTextEdit, QScrollArea, QRadioButton, QSpinBox, QMessageBox, QComboBox
+from PyQt5.QtWidgets import QApplication, QProgressBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, QPlainTextEdit, QScrollArea, QRadioButton, QSpinBox, QMessageBox, QComboBox, QCheckBox
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 
 class RunThread(QThread):
@@ -29,7 +29,7 @@ class RunThread(QThread):
 class GUImore(QWidget):
     def __init__(self):
         super().__init__()
-
+        self.enable_gpu = True
         self.initUI()
 
     def initUI(self):
@@ -128,6 +128,10 @@ class GUImore(QWidget):
         self.output_message_box = QPlainTextEdit()
         self.output_message_box.setReadOnly(True)
         output_message_box_label = QLabel("Careless Output:")
+        self.gpu_checkbox = QCheckBox("GPU")
+        self.gpu_checkbox.setChecked(True)
+        self.gpu_checkbox.stateChanged.connect(self.toggle_gpu)
+        layout.addWidget(self.gpu_checkbox)
         layout.addWidget(output_message_box_label)
         layout.addWidget(self.output_message_box)
 
@@ -199,6 +203,10 @@ class GUImore(QWidget):
 
     def run_careless(self):
         iterations = self.iterations_input.value()
+        if self.enable_gpu == True:
+            enable_gpu = "--gpu-id=0"
+        else:
+            enable_gpu = "--disable-gpu"
         mode = "normal" if self.normal_radio.isChecked() else "robust" if self.robust_radio.isChecked() else "boost"
         mode_folder = os.path.join("careless_" + self.projname, mode)
         self.mode_folder = mode_folder
@@ -216,21 +224,21 @@ class GUImore(QWidget):
             os.makedirs(mode_folder, exist_ok=True)
 
         if mode == "normal":
-            command = ["careless", "mono", "--anomalous", "--disable-image-scales", "--merge-half-datasets",
+            command = ["careless", "mono", "--anomalous", f"{enable_gpu}", "--disable-image-scales", "--merge-half-datasets",
                     f"--iterations={iterations}", ",".join(self.batch_and_mtzreal_columns), self.inputfile,
                     f"careless_{self.projname}/normal/{self.projname}"]
         elif mode == "robust":
             dof = self.dof_input.value()
-            command = ["careless", "mono", f"--studentt-likelihood-dof={dof}", "--anomalous",
+            command = ["careless", "mono", f"--studentt-likelihood-dof={dof}", "--anomalous", f"{enable_gpu}", 
                     "--disable-image-scales", "--merge-half-datasets", f"--iterations={iterations}",
                     ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless_{self.projname}/robust/{self.projname}"]
         else:  # Boost mode
             dof = self.dof_input.value()
-            command1 = ["careless", "mono", f"--studentt-likelihood-dof={dof}", "--mc-samples=20", "--mlp-layers=10", f"--image-layers={boost_layers}",
+            command1 = ["careless", "mono", f"--studentt-likelihood-dof={dof}", f"{enable_gpu}", "--mc-samples=20", "--mlp-layers=10", f"--image-layers={boost_layers}",
                         ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless_{self.projname}/boost_noanom/{self.projname}"]
 
             command2 = ["careless", "mono", "--freeze-scale", f"--scale-file=careless_{self.projname}/boost_noanom/{self.projname}_scale", "--anomalous",
-                        f"--studentt-likelihood-dof={dof}", "--mc-samples=20", "--mlp-layers=10", f"--image-layers={boost_layers}",
+                        f"--studentt-likelihood-dof={dof}", f"{enable_gpu}", "--mc-samples=20", "--mlp-layers=10", f"--image-layers={boost_layers}",
                         ",".join(self.batch_and_mtzreal_columns), self.inputfile, f"careless_{self.projname}/boost_anom/{self.projname}"]
 
 
@@ -243,6 +251,9 @@ class GUImore(QWidget):
 
         QMessageBox.information(self, "Initiated", "Started running careless... output will appear in the output box shortly.")
         self.output_message_box.appendPlainText("Starting careless, please wait...\n")
+
+    def toggle_gpu(self, state):
+        self.enable_gpu = bool(state)
 
     def update_run_careless_button(self):
         if hasattr(self, 'projname') and hasattr(self, 'inputfile') and hasattr(self, 'batch_and_mtzreal_columns'):
