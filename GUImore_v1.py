@@ -270,6 +270,9 @@ class GUImore(QWidget):
             self.boost_level_box.setDisabled(True)
 
     def run_command_thread(self, command):
+        command_str = " ".join(command)
+        self.output_message_box.appendPlainText(f"Command: {command_str}")
+        
         self.run_thread.command = command
         self.run_thread.start()
         
